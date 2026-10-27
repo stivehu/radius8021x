@@ -1,0 +1,44 @@
+# EAP module: EAP-TLS only for now (cameras with client certificates).
+# entrypoint.sh copies the certificates to ${certdir}/bkt (source: ./mkcerts.sh, ./mkclient.sh).
+eap {
+    default_eap_type = tls
+    timer_expire = 60
+    ignore_unknown_eap_types = no
+    cisco_accounting_username_bug = no
+    max_sessions = ${max_requests}
+
+    tls-config tls-common {
+        private_key_file = ${certdir}/bkt/server.key
+        certificate_file = ${certdir}/bkt/server.pem
+        ca_file = ${certdir}/bkt/ca.pem
+        dh_file = ${certdir}/bkt/dh
+
+        cipher_list = "DEFAULT"
+        cipher_server_preference = no
+
+        # Many embedded supplicants (cameras, switches) still mishandle EAP-TLS over TLS 1.3
+        tls_min_version = "1.2"
+        tls_max_version = "1.2"
+
+        fragment_size = 1024
+        include_length = yes
+
+        # The client certificate CN must match the EAP identity
+        check_cert_cn = %{User-Name}
+
+        cache {
+            enable = no
+        }
+
+        verify {
+        }
+
+        ocsp {
+            enable = no
+        }
+    }
+
+    tls {
+        tls = tls-common
+    }
+}
