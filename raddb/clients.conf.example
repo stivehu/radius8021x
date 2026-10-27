@@ -1,0 +1,16 @@
+# RADIUS clients (authenticators): the switches whose ports use 802.1X.
+# Copy to clients.conf and list your switches; clients are matched by source IP.
+# The shared secret comes from RADIUS_SECRET in .env.
+
+# Required by "make test" (eapol_test runs on the host)
+client localhost {
+    ipaddr = 127.0.0.1
+    secret = $ENV{RADIUS_SECRET}
+    shortname = localhost
+}
+
+client switch1 {
+    ipaddr = 192.0.2.10
+    secret = $ENV{RADIUS_SECRET}
+    shortname = switch1
+}

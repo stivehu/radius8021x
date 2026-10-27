@@ -1,0 +1,27 @@
+# 802.1X RADIUS (FreeRADIUS, EAP-TLS)
+# Host network: a switch reaches the server on its own management subnet address,
+# and clients.conf identifies the switch by source IP.
+services:
+  radius:
+    build: .
+    network_mode: host
+    environment:
+      RADIUS_SECRET: ${RADIUS_SECRET:?RADIUS_SECRET is missing from .env}
+      TZ: Europe/Budapest
+    volumes:
+      - ./certs:/run/certs:ro
+      - ./raddb/clients.conf:/etc/freeradius/clients.conf:ro
+    command: ${RADIUS_ARGS:-freeradius}
+    restart: unless-stopped
+
+  # EAP-TLS test authentication through the localhost client (make test)
+  eapol-test:
+    profiles: [test]
+    build: ./test
+    network_mode: host
+    environment:
+      RADIUS_SECRET: ${RADIUS_SECRET}
+    volumes:
+      - ./certs:/certs:ro
+      - ./test:/test:ro
+    command: /test/run.sh

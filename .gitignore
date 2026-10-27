@@ -1,0 +1,7 @@
+.env
+test.out
+# Site-specific switch list (template: raddb/clients.conf.example)
+raddb/clients.conf
+# Private keys and issued certificates: only on the RADIUS host, never in git
+certs/*
+!certs/.gitkeep
