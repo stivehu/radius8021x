@@ -1,0 +1,15 @@
+# MAC Authentication Bypass: a request without EAP is accepted only if the MAC
+# reported by the switch (Calling-Station-Id) is listed in authorized_macs.
+# EAP requests are not affected: they still need a valid client certificate.
+mab {
+    if (!&EAP-Message) {
+        rewrite_calling_station_id
+        authorized_macs
+        if (!ok) {
+            reject
+        }
+        update control {
+            &Auth-Type := Accept
+        }
+    }
+}

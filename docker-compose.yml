@@ -11,10 +11,11 @@ services:
     volumes:
       - ./certs:/run/certs:ro
       - ./raddb/clients.conf:/etc/freeradius/clients.conf:ro
+      - ./raddb/authorized_macs:/etc/freeradius/authorized_macs:ro
     command: ${RADIUS_ARGS:-freeradius}
     restart: unless-stopped
 
-  # EAP-TLS test authentication through the localhost client (make test)
+  # EAP-TLS and MAB test authentication through the localhost client (make test)
   eapol-test:
     profiles: [test]
     build: ./test

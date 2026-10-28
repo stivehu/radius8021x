@@ -2,6 +2,8 @@
 test.out
 # Site-specific switch list (template: raddb/clients.conf.example)
 raddb/clients.conf
+# Site-specific MAB allow list (template: raddb/authorized_macs.example)
+raddb/authorized_macs
 # Private keys and issued certificates: only on the RADIUS host, never in git
 certs/*
 !certs/.gitkeep

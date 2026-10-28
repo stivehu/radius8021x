@@ -1,0 +1,8 @@
+# MAB (MAC Authentication Bypass) allow list: devices without 802.1X support.
+# Copy to authorized_macs; one MAC per line, uppercase, dash-separated.
+# The switch may send any format, the server normalizes it before the lookup.
+
+# Required by "make test"
+02-00-00-00-00-01
+
+00-11-22-33-44-55

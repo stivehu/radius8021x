@@ -1,0 +1,5 @@
+# MAB allow list, keyed by the MAC normalized by rewrite_calling_station_id (AA-BB-CC-DD-EE-FF)
+files authorized_macs {
+    key = "%{Calling-Station-Id}"
+    filename = ${confdir}/authorized_macs
+}
