@@ -1,0 +1,11 @@
+# EAP-MD5 devices: the password comes from eap_md5_users, and EAP-MD5 is offered first.
+# Some MD5-only supplicants do not NAK the default EAP-TLS request, they restart with a new
+# EAP-Identity instead, so the authentication never completes.
+md5_users {
+    eap_md5_users
+    if (ok) {
+        update control {
+            &EAP-Type := MD5-Challenge
+        }
+    }
+}

@@ -19,11 +19,12 @@ switch (`Calling-Station-Id`) is in `raddb/authorized_macs`.
 | `raddb/mods-available/authorized_macs` | `files` module keyed by the normalized `Calling-Station-Id` |
 | `raddb/mods-available/eap_md5_users` | `files` module keyed by `User-Name`: sets `Cleartext-Password` for EAP-MD5 |
 | `raddb/policy.d/mab` | first step of `authorize`: non-EAP requests are accepted or rejected by the allow list |
+| `raddb/policy.d/md5_users` | second step of `authorize`: password lookup, and EAP-MD5 offered first to the listed identities |
 | `entrypoint.sh` | copies `certs/` into the container, owned by `freerad` |
 | `mkcerts.sh` | CA (if missing) + server certificate + DH |
 | `mkclient.sh` | device certificate: `certs/clients/<identity>.{pem,key,p12}` |
 | `fetch-clients.sh` | `make fetch-clients`: copies `certs/clients/` from the RADIUS host (`RADIUS_REMOTE` in `.env`) via scp |
-| `test/` | `eapol_test` and `radclient` checks: EAP-TLS valid/CN mismatch, EAP-MD5 valid/wrong password/unknown identity, MAB listed/unlisted MAC |
+| `test/` | `eapol_test` and `radclient` checks: EAP-TLS valid/CN mismatch, EAP-MD5 valid/wrong password/unknown identity, first offered EAP type (MD5/TLS), MAB listed/unlisted MAC |
 
 `certs/` (including the CA key!) is not in git, it lives only on the RADIUS host — back it up.
 
@@ -89,8 +90,9 @@ For devices that support 802.1X but not EAP-TLS: add a line to `raddb/eap_md5_us
 <identity> Cleartext-Password := "<password>"
 ```
 
-On the device: EAP-MD5, identity `<identity>`, the same password. The server offers EAP-TLS
-first; the device NAKs it and asks for MD5.
+On the device: EAP-MD5, identity `<identity>`, the same password. The server offers EAP-MD5
+first to the identities listed here (`raddb/policy.d/md5_users`): some MD5-only devices do not
+NAK EAP-TLS, they restart with a new EAP-Identity instead.
 
 EAP-MD5 has no server authentication and no keying material, and a captured exchange allows an
 offline dictionary attack: use long random passwords (`openssl rand -base64 24`) and prefer

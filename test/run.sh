@@ -60,6 +60,19 @@ mab() {
     } | radclient -x -r 1 -t 3 "$RADIUS_HOST" auth "$RADIUS_SECRET" | tee /dev/stderr | grep -q 'Received Access-Accept'
 }
 
+# Type of the server's first EAP request after an EAP-Identity response; $1: identity, $2: expected type.
+# EAP-Message: code 2 (Response), id 0, length, type 1 (Identity), identity.
+EAP_TYPE_MD5=04
+EAP_TYPE_TLS=0d
+first_eap_type() {
+    identity_hex=$(printf '%s' "$1" | od -An -tx1 | tr -d ' \n')
+    length_hex=$(printf '%04x' $((5 + ${#1})))
+    printf 'User-Name = "%s", EAP-Message = 0x0200%s01%s, Message-Authenticator = 0x00\n' \
+        "$1" "$length_hex" "$identity_hex" \
+        | radclient -x -r 1 -t 3 "$RADIUS_HOST" auth "$RADIUS_SECRET" | tee /dev/stderr \
+        | grep -qE "EAP-Message = 0x01[0-9a-f]{6}$2"
+}
+
 # $1: name, $2: expected result (SUCCESS / FAILURE), rest: command
 check() {
     name=$1
@@ -105,6 +118,9 @@ else
     write_md5_conf md5_wrong_password "$MD5_IDENTITY" "wrong-$md5_password"
     check md5_wrong_password FAILURE eap_md5 md5_wrong_password
 fi
+# Some MD5-only supplicants do not NAK EAP-TLS but restart: EAP-MD5 identities get MD5 first
+check md5_offered_first SUCCESS first_eap_type "$MD5_IDENTITY" "$EAP_TYPE_MD5"
+check tls_offered_first SUCCESS first_eap_type "$TEST_IDENTITY" "$EAP_TYPE_TLS"
 # An identity without a password (e.g. an EAP-TLS device) cannot use EAP-MD5
 write_md5_conf md5_unknown_identity "$TEST_IDENTITY" "any-password"
 check md5_unknown_identity FAILURE eap_md5 md5_unknown_identity

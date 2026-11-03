@@ -1,5 +1,5 @@
 # EAP module: EAP-TLS (cameras with client certificates) and EAP-MD5 (password, raddb/eap_md5_users).
-# TLS is offered first; a supplicant without TLS support NAKs it and asks for MD5.
+# TLS is offered first, except to the eap_md5_users identities (policy.d/md5_users).
 # entrypoint.sh copies the certificates to ${certdir}/site (source: ./mkcerts.sh, ./mkclient.sh).
 eap {
     default_eap_type = tls
