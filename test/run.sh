@@ -1,11 +1,14 @@
 #!/bin/sh
-# EAP-TLS and MAB checks against the running radius container (127.0.0.1, localhost client).
-# Prerequisites: ./mkclient.sh test-client, MAB_MAC listed in raddb/authorized_macs
+# EAP-TLS, EAP-MD5 and MAB checks against the running radius container (127.0.0.1, localhost client).
+# Prerequisites: ./mkclient.sh test-client, MAB_MAC listed in raddb/authorized_macs,
+# MD5_IDENTITY listed in raddb/eap_md5_users (mounted at /eap_md5_users)
 set -u
 
 RADIUS_HOST=127.0.0.1
 TEST_IDENTITY=test-client
 MAB_MAC=02:00:00:00:00:01
+MD5_IDENTITY=test-md5
+MD5_USERS=/eap_md5_users
 WORK=/tmp/eapol
 failed=0
 
@@ -23,6 +26,24 @@ network={
     eapol_flags=0
 }
 EOT
+}
+
+# $1: name, $2: identity, $3: password
+write_md5_conf() {
+    cat > "$WORK/$1.conf" <<EOT
+network={
+    key_mgmt=IEEE8021X
+    eap=MD5
+    identity="$2"
+    password="$3"
+    eapol_flags=0
+}
+EOT
+}
+
+# EAP-MD5 with $WORK/$1.conf: no keying material (-n)
+eap_md5() {
+    eapol_test -c "$WORK/$1.conf" -a "$RADIUS_HOST" -s "$RADIUS_SECRET" -t 10 -n
 }
 
 # EAP-TLS with $WORK/$1.conf; $2: optional Calling-Station-Id (the supplicant MAC)
@@ -73,5 +94,19 @@ check mab_listed_mac SUCCESS mab 020000000001 "$MAB_MAC"
 check mab_unlisted_mac FAILURE mab 020000000002 "02:00:00:00:00:02"
 # Only the switch-reported Calling-Station-Id counts, not the User-Name
 check mab_listed_user_name_only FAILURE mab 020000000001 ""
+
+md5_password=$(sed -n "s/^$MD5_IDENTITY[[:space:]]\+Cleartext-Password[[:space:]]*:=[[:space:]]*\"\(.*\)\"[[:space:]]*$/\1/p" "$MD5_USERS")
+if [ -z "$md5_password" ] || [ "$md5_password" = "change-me" ]; then
+    echo "FAIL eap_md5: set a password for $MD5_IDENTITY in raddb/eap_md5_users"
+    failed=1
+else
+    write_md5_conf md5_valid "$MD5_IDENTITY" "$md5_password"
+    check md5_valid SUCCESS eap_md5 md5_valid
+    write_md5_conf md5_wrong_password "$MD5_IDENTITY" "wrong-$md5_password"
+    check md5_wrong_password FAILURE eap_md5 md5_wrong_password
+fi
+# An identity without a password (e.g. an EAP-TLS device) cannot use EAP-MD5
+write_md5_conf md5_unknown_identity "$TEST_IDENTITY" "any-password"
+check md5_unknown_identity FAILURE eap_md5 md5_unknown_identity
 
 exit $failed

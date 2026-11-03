@@ -1,0 +1,5 @@
+# EAP-MD5 credentials: Cleartext-Password per EAP identity
+files eap_md5_users {
+    key = "%{User-Name}"
+    filename = ${confdir}/eap_md5_users
+}

@@ -4,6 +4,8 @@ test.out
 raddb/clients.conf
 # Site-specific MAB allow list (template: raddb/authorized_macs.example)
 raddb/authorized_macs
+# Site-specific EAP-MD5 passwords (template: raddb/eap_md5_users.example)
+raddb/eap_md5_users
 # Private keys and issued certificates: only on the RADIUS host, never in git
 certs/*
 !certs/.gitkeep

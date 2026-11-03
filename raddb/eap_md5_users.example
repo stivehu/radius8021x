@@ -1,0 +1,9 @@
+# EAP-MD5 credentials: devices that support 802.1X but not EAP-TLS.
+# Copy to eap_md5_users; one device per line: <identity> Cleartext-Password := "<password>"
+# EAP-MD5 is open to offline dictionary attacks: use long random passwords,
+# e.g. openssl rand -base64 24
+
+# Required by "make test": replace the password
+test-md5 Cleartext-Password := "change-me"
+
+camera1 Cleartext-Password := "change-me"
