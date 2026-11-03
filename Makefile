@@ -5,7 +5,7 @@ TEST_IDENTITY := test-client
 TEST_OUT := 2>&1 | tee test.out
 
 # certs/ and test/ are existing directories, so the targets must be phony
-.PHONY: build start stop restart logs check certs client test
+.PHONY: build start stop restart logs check certs client fetch-clients test
 
 build:
 	docker compose build
@@ -32,6 +32,9 @@ raddb/authorized_macs:
 client:
 	@test -n "$(NAME)" || { echo "Usage: make client NAME=<identity> [P12PASS=<password>]"; exit 1; }
 	./mkclient.sh "$(NAME)" "$(P12PASS)"
+# Copy certs/clients/ from the RADIUS host (RADIUS_REMOTE in .env)
+fetch-clients:
+	./fetch-clients.sh
 
 test: certs/server.pem raddb/clients.conf raddb/authorized_macs
 	test -f certs/clients/$(TEST_IDENTITY).pem || ./mkclient.sh $(TEST_IDENTITY)

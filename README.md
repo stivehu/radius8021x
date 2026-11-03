@@ -19,6 +19,7 @@ switch (`Calling-Station-Id`) is in `raddb/authorized_macs`.
 | `entrypoint.sh` | copies `certs/` into the container, owned by `freerad` |
 | `mkcerts.sh` | CA (if missing) + server certificate + DH |
 | `mkclient.sh` | device certificate: `certs/clients/<identity>.{pem,key,p12}` |
+| `fetch-clients.sh` | `make fetch-clients`: copies `certs/clients/` from the RADIUS host (`RADIUS_REMOTE` in `.env`) via scp |
 | `test/` | `eapol_test` and `radclient` checks: EAP-TLS valid/CN mismatch, MAB listed/unlisted MAC |
 
 `certs/` (including the CA key!) is not in git, it lives only on the RADIUS host — back it up.
