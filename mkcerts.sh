@@ -3,12 +3,24 @@
 # An existing CA is never overwritten (that would invalidate every client certificate).
 set -euo pipefail
 
-CERT_DIR="$(dirname "$0")/certs"
+SCRIPT_DIR="$(dirname "$0")"
+CERT_DIR="$SCRIPT_DIR/certs"
+DEFAULT_ORG=RADIUS
 CA_DAYS=3650
 SERVER_DAYS=1825
 SERVER_CN="${1:-radius}"
-CA_SUBJECT="/O=RADIUS/CN=RADIUS 802.1X CA"
 DH_BITS=2048
+
+env_value() {
+    if [ -f "$SCRIPT_DIR/.env" ]; then
+        sed -n "s/^$1=//p" "$SCRIPT_DIR/.env" | tail -n 1
+    fi
+}
+
+# Issuer organization: the environment, then .env, then the default
+CA_ORG=${CA_ORG:-$(env_value CA_ORG)}
+CA_ORG=${CA_ORG:-$DEFAULT_ORG}
+CA_SUBJECT="/O=$CA_ORG/CN=$CA_ORG 802.1X CA"
 
 cd "$CERT_DIR"
 umask 077
@@ -23,7 +35,7 @@ else
 fi
 
 openssl req -newkey rsa:2048 -nodes -sha256 \
-    -keyout server.key -out server.csr -subj "/O=RADIUS/CN=$SERVER_CN"
+    -keyout server.key -out server.csr -subj "/O=$CA_ORG/CN=$SERVER_CN"
 openssl x509 -req -in server.csr -CA ca.pem -CAkey ca.key -CAcreateserial \
     -days "$SERVER_DAYS" -sha256 -out server.pem \
     -extfile <(printf '%s\n' \

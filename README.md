@@ -25,6 +25,7 @@ switch (`Calling-Station-Id`) is in `raddb/authorized_macs`.
 | `mkclient.sh` | device certificate: `certs/clients/<identity>.{pem,key,p12}` |
 | `fetch-clients.sh` | `make fetch-clients`: copies `certs/clients/` from the RADIUS host (`RADIUS_REMOTE` in `.env`) via scp |
 | `test/` | `eapol_test` and `radclient` checks: EAP-TLS valid/CN mismatch, EAP-MD5 valid/wrong password/unknown identity, first offered EAP type (MD5/TLS), MAB listed/unlisted MAC |
+| `test/certs_test.sh` | `make test-certs`: certificate organizations (`CA_ORG`, `CLIENT_ORG`), runs on the host with `openssl` only |
 
 `certs/` (including the CA key!) is not in git, it lives only on the RADIUS host — back it up.
 
@@ -75,8 +76,14 @@ certificate — install the certificate on the device first.
 ## Device certificate
 
 ```bash
-make client NAME=<identity> P12PASS=<password>
+make client NAME=<identity> P12PASS=<password> [ORG=<organization>]
 ```
+
+The certificate organizations come from `.env` (default `RADIUS`): `CA_ORG` is the issuer (the CA
+subject, `O=<CA_ORG>, CN=<CA_ORG> 802.1X CA`), `CLIENT_ORG` is whom the device certificate is
+issued to (`O=<CLIENT_ORG>, CN=<identity>`); `ORG=` overrides `CLIENT_ORG` for one certificate.
+The issuer is fixed when the CA is created: changing `CA_ORG` later needs a new CA (move the old
+`certs/` away, `make certs`), and then every device needs a new certificate and the new `ca.pem`.
 
 On the device: EAP-TLS, identity `<identity>`, CA = `certs/ca.pem`,
 client = `certs/clients/<identity>.p12` (or `.pem` + `.key`).

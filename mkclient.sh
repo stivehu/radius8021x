@@ -5,10 +5,22 @@ set -euo pipefail
 
 test -n "${1:-}" || { echo "Usage: $0 <identity> [p12-password]" >&2; exit 1; }
 
-CERT_DIR="$(dirname "$0")/certs"
+SCRIPT_DIR="$(dirname "$0")"
+CERT_DIR="$SCRIPT_DIR/certs"
+DEFAULT_ORG=RADIUS
 CLIENT_DAYS=1825
 NAME="$1"
 P12_PASSWORD="${2:-}"
+
+env_value() {
+    if [ -f "$SCRIPT_DIR/.env" ]; then
+        sed -n "s/^$1=//p" "$SCRIPT_DIR/.env" | tail -n 1
+    fi
+}
+
+# Subject organization (whom the certificate is issued to): the environment, then .env, then the default
+CLIENT_ORG=${CLIENT_ORG:-$(env_value CLIENT_ORG)}
+CLIENT_ORG=${CLIENT_ORG:-$DEFAULT_ORG}
 
 cd "$CERT_DIR"
 test -f ca.key || { echo "No CA, run first: ./mkcerts.sh" >&2; exit 1; }
@@ -16,7 +28,7 @@ mkdir -p clients
 umask 077
 
 openssl req -newkey rsa:2048 -nodes -sha256 \
-    -keyout "clients/$NAME.key" -out "clients/$NAME.csr" -subj "/O=RADIUS/CN=$NAME"
+    -keyout "clients/$NAME.key" -out "clients/$NAME.csr" -subj "/O=$CLIENT_ORG/CN=$NAME"
 openssl x509 -req -in "clients/$NAME.csr" -CA ca.pem -CAkey ca.key -CAcreateserial \
     -days "$CLIENT_DAYS" -sha256 -out "clients/$NAME.pem" \
     -extfile <(printf '%s\n' \
