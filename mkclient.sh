@@ -1,5 +1,6 @@
 #!/bin/bash
 # Client (camera) certificate signed by the CA: certs/clients/<identity>.{pem,key,p12}
+# and <identity>-cert-key.pem
 # <identity> becomes the CN; set it as the EAP identity on the device (check_cert_cn).
 set -euo pipefail
 
@@ -41,4 +42,8 @@ rm "clients/$NAME.csr"
 openssl pkcs12 -export -out "clients/$NAME.p12" -inkey "clients/$NAME.key" \
     -in "clients/$NAME.pem" -certfile ca.pem -passout "pass:$P12_PASSWORD"
 
-echo "Done: $CERT_DIR/clients/$NAME.{pem,key,p12} (CA: $CERT_DIR/ca.pem)"
+# Cameras that take a single file without password (older firmware rejects modern PKCS#12):
+# certificate + unencrypted traditional RSA key
+{ cat "clients/$NAME.pem"; openssl rsa -in "clients/$NAME.key" -traditional; } > "clients/$NAME-cert-key.pem"
+
+echo "Done: $CERT_DIR/clients/$NAME.{pem,key,p12}, $NAME-cert-key.pem (CA: $CERT_DIR/ca.pem)"

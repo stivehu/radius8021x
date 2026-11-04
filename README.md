@@ -22,10 +22,10 @@ switch (`Calling-Station-Id`) is in `raddb/authorized_macs`.
 | `raddb/policy.d/md5_users` | second step of `authorize`: password lookup, and EAP-MD5 offered first to the listed identities |
 | `entrypoint.sh` | copies `certs/` into the container, owned by `freerad` |
 | `mkcerts.sh` | CA (if missing) + server certificate + DH |
-| `mkclient.sh` | device certificate: `certs/clients/<identity>.{pem,key,p12}` |
+| `mkclient.sh` | device certificate: `certs/clients/<identity>.{pem,key,p12}` and `<identity>-cert-key.pem` |
 | `fetch-clients.sh` | `make fetch-clients`: copies `certs/clients/` from the RADIUS host (`RADIUS_REMOTE` in `.env`) via scp |
 | `test/` | `eapol_test` and `radclient` checks: EAP-TLS valid/CN mismatch, EAP-MD5 valid/wrong password/unknown identity, first offered EAP type (MD5/TLS), MAB listed/unlisted MAC |
-| `test/certs_test.sh` | `make test-certs`: certificate organizations (`CA_ORG`, `CLIENT_ORG`), runs on the host with `openssl` only |
+| `test/certs_test.sh` | `make test-certs`: certificate organizations (`CA_ORG`, `CLIENT_ORG`) and client file formats, runs on the host with `openssl` only |
 
 `certs/` (including the CA key!) is not in git, it lives only on the RADIUS host — back it up.
 
@@ -86,7 +86,9 @@ The issuer is fixed when the CA is created: changing `CA_ORG` later needs a new 
 `certs/` away, `make certs`), and then every device needs a new certificate and the new `ca.pem`.
 
 On the device: EAP-TLS, identity `<identity>`, CA = `certs/ca.pem`,
-client = `certs/clients/<identity>.p12` (or `.pem` + `.key`).
+client = `certs/clients/<identity>.p12` (or `.pem` + `.key`). Devices that take a single client
+file without password and reject the `.p12` (older firmware): `certs/clients/<identity>-cert-key.pem`
+(certificate + unencrypted traditional RSA key).
 
 ## EAP-MD5
 
