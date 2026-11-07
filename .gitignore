@@ -9,3 +9,5 @@ raddb/eap_md5_users
 # Private keys and issued certificates: only on the RADIUS host, never in git
 certs/*
 !certs/.gitkeep
+
+localdocs/
