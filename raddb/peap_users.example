@@ -1,0 +1,9 @@
+# PEAP-MSCHAPv2 credentials: devices that support 802.1X with PEAP but not EAP-TLS.
+# Copy to peap_users; one device per line: <identity> Cleartext-Password := "<password>"
+# The identity is the inner (tunneled) one; use long random passwords,
+# e.g. openssl rand -base64 24
+
+# Required by "make test": replace the password
+test-peap Cleartext-Password := "change-me"
+
+camera1 Cleartext-Password := "change-me"

@@ -1,7 +1,8 @@
 #!/bin/sh
-# EAP-TLS, EAP-MD5 and MAB checks against the running radius container (127.0.0.1, localhost client).
+# EAP-TLS, EAP-MD5, PEAP-MSCHAPv2 and MAB checks against the running radius container (127.0.0.1, localhost client).
 # Prerequisites: ./mkclient.sh test-client, MAB_MAC listed in raddb/authorized_macs,
-# MD5_IDENTITY listed in raddb/eap_md5_users (mounted at /eap_md5_users)
+# MD5_IDENTITY listed in raddb/eap_md5_users (mounted at /eap_md5_users),
+# PEAP_IDENTITY listed in raddb/peap_users (mounted at /peap_users)
 set -u
 
 RADIUS_HOST=127.0.0.1
@@ -9,6 +10,8 @@ TEST_IDENTITY=test-client
 MAB_MAC=02:00:00:00:00:01
 MD5_IDENTITY=test-md5
 MD5_USERS=/eap_md5_users
+PEAP_IDENTITY=test-peap
+PEAP_USERS=/peap_users
 WORK=/tmp/eapol
 failed=0
 
@@ -39,6 +42,26 @@ network={
     eapol_flags=0
 }
 EOT
+}
+
+# $1: name, $2: identity, $3: password
+write_peap_conf() {
+    cat > "$WORK/$1.conf" <<EOT
+network={
+    key_mgmt=IEEE8021X
+    eap=PEAP
+    identity="$2"
+    password="$3"
+    ca_cert="/certs/ca.pem"
+    phase2="auth=MSCHAPV2"
+    eapol_flags=0
+}
+EOT
+}
+
+# Cleartext-Password of $1 in the users file $2
+password_of() {
+    sed -n "s/^$1[[:space:]]\+Cleartext-Password[[:space:]]*:=[[:space:]]*\"\(.*\)\"[[:space:]]*$/\1/p" "$2"
 }
 
 # EAP-MD5 with $WORK/$1.conf: no keying material (-n)
@@ -108,7 +131,7 @@ check mab_unlisted_mac FAILURE mab 020000000002 "02:00:00:00:00:02"
 # Only the switch-reported Calling-Station-Id counts, not the User-Name
 check mab_listed_user_name_only FAILURE mab 020000000001 ""
 
-md5_password=$(sed -n "s/^$MD5_IDENTITY[[:space:]]\+Cleartext-Password[[:space:]]*:=[[:space:]]*\"\(.*\)\"[[:space:]]*$/\1/p" "$MD5_USERS")
+md5_password=$(password_of "$MD5_IDENTITY" "$MD5_USERS")
 if [ -z "$md5_password" ] || [ "$md5_password" = "change-me" ]; then
     echo "FAIL eap_md5: set a password for $MD5_IDENTITY in raddb/eap_md5_users"
     failed=1
@@ -124,5 +147,24 @@ check tls_offered_first SUCCESS first_eap_type "$TEST_IDENTITY" "$EAP_TYPE_TLS"
 # An identity without a password (e.g. an EAP-TLS device) cannot use EAP-MD5
 write_md5_conf md5_unknown_identity "$TEST_IDENTITY" "any-password"
 check md5_unknown_identity FAILURE eap_md5 md5_unknown_identity
+
+# PEAP-MSCHAPv2: the device NAKs EAP-TLS and asks for PEAP, the password comes from peap_users
+peap_password=$(password_of "$PEAP_IDENTITY" "$PEAP_USERS")
+if [ -z "$peap_password" ] || [ "$peap_password" = "change-me" ]; then
+    echo "FAIL peap: set a password for $PEAP_IDENTITY in raddb/peap_users"
+    failed=1
+else
+    write_peap_conf peap_valid "$PEAP_IDENTITY" "$peap_password"
+    check peap_valid SUCCESS eap peap_valid
+    write_peap_conf peap_wrong_password "$PEAP_IDENTITY" "wrong-$peap_password"
+    check peap_wrong_password FAILURE eap peap_wrong_password
+fi
+# An identity without a PEAP password (EAP-TLS or EAP-MD5 device) cannot use PEAP
+write_peap_conf peap_unknown_identity "$TEST_IDENTITY" "any-password"
+check peap_unknown_identity FAILURE eap peap_unknown_identity
+if [ -n "$md5_password" ]; then
+    write_peap_conf peap_md5_identity "$MD5_IDENTITY" "$md5_password"
+    check peap_md5_identity FAILURE eap peap_md5_identity
+fi
 
 exit $failed

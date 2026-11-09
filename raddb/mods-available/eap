@@ -1,5 +1,7 @@
-# EAP module: EAP-TLS (cameras with client certificates) and EAP-MD5 (password, raddb/eap_md5_users).
-# TLS is offered first, except to the eap_md5_users identities (policy.d/md5_users).
+# EAP module: EAP-TLS (cameras with client certificates), EAP-MD5 (password, raddb/eap_md5_users)
+# and PEAP-MSCHAPv2 (password, raddb/peap_users, looked up in the inner-tunnel virtual server).
+# TLS is offered first, except to the eap_md5_users identities (policy.d/md5_users);
+# PEAP devices NAK it and ask for PEAP.
 # entrypoint.sh copies the certificates to ${certdir}/site (source: ./mkcerts.sh, ./mkclient.sh).
 eap {
     default_eap_type = tls
@@ -44,5 +46,15 @@ eap {
     }
 
     md5 {
+    }
+
+    # The server certificate authenticates the RADIUS server; the device sends no certificate
+    peap {
+        tls = tls-common
+        default_eap_type = mschapv2
+        virtual_server = "inner-tunnel"
+    }
+
+    mschapv2 {
     }
 }

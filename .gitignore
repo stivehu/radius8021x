@@ -6,6 +6,8 @@ raddb/clients.conf
 raddb/authorized_macs
 # Site-specific EAP-MD5 passwords (template: raddb/eap_md5_users.example)
 raddb/eap_md5_users
+# Site-specific PEAP-MSCHAPv2 passwords (template: raddb/peap_users.example)
+raddb/peap_users
 # Private keys and issued certificates: only on the RADIUS host, never in git
 certs/*
 !certs/.gitkeep

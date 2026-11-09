@@ -1,0 +1,5 @@
+# PEAP-MSCHAPv2 credentials: Cleartext-Password per inner EAP identity (inner-tunnel only)
+files peap_users {
+    key = "%{User-Name}"
+    filename = ${confdir}/peap_users
+}

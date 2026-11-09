@@ -1,9 +1,10 @@
-# 802.1X RADIUS (EAP-TLS + EAP-MD5 + MAB)
+# 802.1X RADIUS (EAP-TLS + EAP-MD5 + PEAP-MSCHAPv2 + MAB)
 
 FreeRADIUS 3.2 in a docker container for 802.1X port authentication of IP cameras.
 The device authenticates with a client certificate issued by our own CA (EAP-TLS), and the
 certificate CN must equal the EAP identity. Devices that support 802.1X but not EAP-TLS can
-use EAP-MD5 with a per-device password from `raddb/eap_md5_users`. Devices without 802.1X support can use MAB
+use EAP-MD5 with a per-device password from `raddb/eap_md5_users`, or PEAP-MSCHAPv2 with a
+per-device password from `raddb/peap_users`. Devices without 802.1X support can use MAB
 (MAC Authentication Bypass): a request without EAP is accepted if the MAC reported by the
 switch (`Calling-Station-Id`) is in `raddb/authorized_macs`.
 
@@ -11,20 +12,22 @@ switch (`Calling-Station-Id`) is in `raddb/authorized_macs`.
 
 | File | |
 |---|---|
-| `Dockerfile` | `freeradius/freeradius-server:3.2.7` + custom `eap`, `authorized_macs`, `eap_md5_users` modules and the `mab` policy |
+| `Dockerfile` | `freeradius/freeradius-server:3.2.7` + custom `eap`, `authorized_macs`, `eap_md5_users`, `peap_users` modules and the `mab` policy |
 | `raddb/clients.conf.example` | template for `raddb/clients.conf` (local, not in git): the switches, secret from `.env` `RADIUS_SECRET` |
 | `raddb/authorized_macs.example` | template for `raddb/authorized_macs` (local, not in git): the MAB allow list |
 | `raddb/eap_md5_users.example` | template for `raddb/eap_md5_users` (local, not in git): the EAP-MD5 passwords |
-| `raddb/mods-available/eap` | EAP-TLS (default, TLS 1.2, `check_cert_cn = %{User-Name}`) and EAP-MD5 |
+| `raddb/peap_users.example` | template for `raddb/peap_users` (local, not in git): the PEAP-MSCHAPv2 passwords |
+| `raddb/mods-available/eap` | EAP-TLS (default, TLS 1.2, `check_cert_cn = %{User-Name}`), EAP-MD5 and PEAP-MSCHAPv2 |
 | `raddb/mods-available/authorized_macs` | `files` module keyed by the normalized `Calling-Station-Id` |
 | `raddb/mods-available/eap_md5_users` | `files` module keyed by `User-Name`: sets `Cleartext-Password` for EAP-MD5 |
+| `raddb/mods-available/peap_users` | `files` module keyed by the inner `User-Name`, first step of the `inner-tunnel` `authorize`: sets `Cleartext-Password` for PEAP-MSCHAPv2 |
 | `raddb/policy.d/mab` | first step of `authorize`: non-EAP requests are accepted or rejected by the allow list |
 | `raddb/policy.d/md5_users` | second step of `authorize`: password lookup, and EAP-MD5 offered first to the listed identities |
 | `entrypoint.sh` | copies `certs/` into the container, owned by `freerad` |
 | `mkcerts.sh` | CA (if missing) + server certificate + DH |
 | `mkclient.sh` | device certificate: `certs/clients/<identity>.{pem,key,p12}` and `<identity>-cert-key.pem` |
 | `fetch-clients.sh` | `make fetch-clients`: copies `certs/clients/` from the RADIUS host (`RADIUS_REMOTE` in `.env`) via scp |
-| `test/` | `eapol_test` and `radclient` checks: EAP-TLS valid/CN mismatch, EAP-MD5 valid/wrong password/unknown identity, first offered EAP type (MD5/TLS), MAB listed/unlisted MAC |
+| `test/` | `eapol_test` and `radclient` checks: EAP-TLS valid/CN mismatch, EAP-MD5 valid/wrong password/unknown identity, first offered EAP type (MD5/TLS), PEAP-MSCHAPv2 valid/wrong password/unknown identity, MAB listed/unlisted MAC |
 | `test/certs_test.sh` | `make test-certs`: certificate organizations (`CA_ORG`, `CLIENT_ORG`) and client file formats, runs on the host with `openssl` only |
 
 `certs/` (including the CA key!) is not in git, it lives only on the RADIUS host — back it up.
@@ -39,12 +42,13 @@ cp env.example .env                                # RADIUS_SECRET=$(openssl ran
 cp raddb/clients.conf.example raddb/clients.conf   # list your switches
 cp raddb/authorized_macs.example raddb/authorized_macs   # list the MAB devices
 cp raddb/eap_md5_users.example raddb/eap_md5_users       # set the EAP-MD5 passwords (test-md5 too)
+cp raddb/peap_users.example raddb/peap_users             # set the PEAP passwords (test-peap too)
 make certs                                         # once; the CA is never overwritten
 sudo make build check start                        # sudo if the user is not in the docker group
 sudo make test                                     # output: test.out
 ```
 
-`raddb/clients.conf`, `raddb/authorized_macs` and `raddb/eap_md5_users` are mounted into the container, so after
+`raddb/clients.conf`, `raddb/authorized_macs`, `raddb/eap_md5_users` and `raddb/peap_users` are mounted into the container, so after
 editing them `sudo make restart` is enough.
 
 ### Firewall
@@ -107,6 +111,21 @@ EAP-MD5 has no server authentication and no keying material, and a captured exch
 offline dictionary attack: use long random passwords (`openssl rand -base64 24`) and prefer
 EAP-TLS wherever the device supports it. `make test` needs the `test-md5` entry with a password
 other than `change-me`.
+
+## PEAP-MSCHAPv2
+
+For devices that support PEAP but not EAP-TLS (e.g. Dahua cameras): add a line to
+`raddb/peap_users`, then `sudo make restart`:
+
+```
+<identity> Cleartext-Password := "<password>"
+```
+
+On the device: PEAP (MSCHAPv2), identity `<identity>`, the same password; if the device asks for a
+CA certificate, use `certs/ca.pem`. The server offers EAP-TLS first, the device NAKs it and asks for
+PEAP. The password is looked up only inside the TLS tunnel, so an identity listed in
+`raddb/eap_md5_users` (EAP-MD5 is forced for it) cannot use PEAP: list each device in one file only.
+`make test` needs the `test-peap` entry with a password other than `change-me`.
 
 ## MAB
 

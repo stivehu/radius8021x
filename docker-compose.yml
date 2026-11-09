@@ -1,4 +1,4 @@
-# 802.1X RADIUS (FreeRADIUS, EAP-TLS, EAP-MD5)
+# 802.1X RADIUS (FreeRADIUS, EAP-TLS, EAP-MD5, PEAP-MSCHAPv2)
 # Host network: a switch reaches the server on its own management subnet address,
 # and clients.conf identifies the switch by source IP.
 services:
@@ -13,10 +13,11 @@ services:
       - ./raddb/clients.conf:/etc/freeradius/clients.conf:ro
       - ./raddb/authorized_macs:/etc/freeradius/authorized_macs:ro
       - ./raddb/eap_md5_users:/etc/freeradius/eap_md5_users:ro
+      - ./raddb/peap_users:/etc/freeradius/peap_users:ro
     command: ${RADIUS_ARGS:-freeradius}
     restart: unless-stopped
 
-  # EAP-TLS, EAP-MD5 and MAB test authentication through the localhost client (make test)
+  # EAP-TLS, EAP-MD5, PEAP-MSCHAPv2 and MAB test authentication through the localhost client (make test)
   eapol-test:
     profiles: [test]
     build: ./test
@@ -27,4 +28,5 @@ services:
       - ./certs:/certs:ro
       - ./test:/test:ro
       - ./raddb/eap_md5_users:/eap_md5_users:ro
+      - ./raddb/peap_users:/peap_users:ro
     command: /test/run.sh
